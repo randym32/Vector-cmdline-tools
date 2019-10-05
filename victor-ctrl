@@ -1,0 +1,416 @@
+#!/bin/bash
+
+# ===================================================================
+# This script creates the neccesary GUID
+# and performs an authorization with Vector
+# the first time it's executed or on demand by command switch.
+#
+# To request a new token for the GUID,
+# effectively renewing the authorization,
+# delete the file "json.blob" and run again
+# or use the menu item -reauth .
+#---------------------------------------------|
+# Parameter block
+#
+# api_key:
+anki_api_key=luyain9ep5phahP8aph8xa
+#---------------------------------------------|
+#
+# ANKI account and Vector IP
+# formatted as template below:
+#---------------------------------------------|
+# username=someone.somewhere@maildomain.dom
+# password=AbC123dEf
+#
+# vector_ip=192.168.1.123
+#---------------------------------------------|
+username=victor.robot@mail.dom
+password=xnxnxnxnxnxnx
+#
+vector_ip=10.0.13.37
+#
+# Logfile location:
+logfile=session.log
+#
+# Debug stuff:
+debug=
+if test "$debug" = "true"
+    then
+       proxystring="-kpx127.0.0.1:8080"
+    else
+       proxystring=""
+fi
+echo $debug
+echo $proxystring
+#---------------------------------------------|
+#
+# End of user parameter block
+#---------------------------------------------/
+#
+#
+#---------------------------------------------\
+# Let's do it:
+# Open logfile and provide some feedback:
+#
+echo >> $logfile
+echo "anki app key : "$anki_api_key >> $logfile
+echo "user name    : "$username        >> $logfile
+echo "password     : "$password     >> $logfile
+echo "vector ip    : "$vector_ip     >> $logfile
+echo
+# ===================================================================
+
+
+# ===================================================================
+# Fancy Banner
+# ===================================================================
+readonly prog_name="Victor*nixCTRL"
+readonly version="0.1 Persistent Alpha"
+readonly signature="Written 2019 by C0RE"
+readonly git_url="http://cyberspace/~c0re/vector"
+readonly bug_report_url="Please report bugs to <c0re@jabber.ccc.de>."
+
+# Colors for terminal output (b = bold)
+export red=$'\e[0;91m'
+export green=$'\e[0;92m'
+export blue=$'\e[0;94m'
+export white=$'\e[0;97m'
+export cyan=$'\e[0;96m'
+export endc=$'\e[0m'
+
+export bgreen=$'\e[1;92m'
+export bblue=$'\e[1;94m'
+export bwhite=$'\e[1;97m'
+export bcyan=$'\e[1;96m'
+export byellow=$'\e[1;96m'
+
+
+banner() {
+printf "${bblue}
+         _        _                             _           ___  _____   __    __
+ /\   /\(_)  ___ | |_  ___   _ __ __/\__ _ __  (_)__  __   / __\/__   \ /__\  / /
+ \ \ / /| | / __|| __|/ _ \ | '__|\    /| '_ \ | |\ \/ /  / /     / /\// \// / /
+  \ V / | || (__ | |_| (_) || |   /_  _\| | | || | >  <  / /___  / /  / _  \/ /___
+   \_/  |_| \___| \__|\___/ |_|     \/  |_| |_||_|/_/\_\ \____/  \/   \/ \_/\____/
+                                                                                   V:$version
+
+=[ *NIX Swiss Army Knife for Victor Ver: $version
+=[ C0RE
+${endc}\\n"
+}
+
+echo >> $logfile
+
+print_info(){
+    echo "anki app key : "$anki_api_key
+    echo "user name    : "$username
+    echo "password     : "$password
+    echo "vector ip    : "$vector_ip
+    echo "logfile      : "$logfile
+    echo "proxy string : "$proxystring
+    echo
+}
+
+#---------------------------------------------|
+# Initial token and auth stuff:
+#
+# Get session token and auth, skip if JSON blob file exist on disk:
+#
+if [ ! -f json.blob ]; then
+    echo "JSON file not found, creating new." | tee -a $logfile && \
+    session=$( curl "$proxystring" -sH 'Anki-App-Key: '$anki_api_key'' --data "username=$username&password=$password" --compressed \
+    'https://accounts.api.anki.com/1/sessions' )
+    echo $session > json.blob | tee -a $logfile
+
+# read JSON to session variable
+session=$( cat $"json.blob")
+session_token=$( echo $session | sed -n 's|.*"session_token":"\([^"]*\)".*|\1|p' )
+    echo "extracted session token: "$session_token | tee -a $logfile
+    echo
+base64_session_token=$( echo -n $session_token | base64 )
+    echo "base64 encoded session token: "$base64_session_token | tee -a $logfile
+    echo
+
+# Get client token guid:
+client_token_guid_JSON=$( curl -sH 'Accept: /' --data '{"user_session_id": "'$base64_session_token'"}' --compressed 'https://'$vector_ip'/v1/user_authentication' --insecure )
+    base64_client_token_guid=$( echo $client_token_guid_JSON | sed -n 's|.*"client_token_guid":"\([^"]*\)".*|\1|p' )
+       echo "extracted base64_client_token_guid: "$base64_client_token_guid | tee -a $logfile
+       echo
+    client_token_guid=$( echo -n $base64_client_token_guid | base64 -di)
+       echo "base64 decoded client token guid: "$client_token_guid | tee -a $logfile
+       echo
+       echo $client_token_guid > client.guid
+    client_token_guid=$( cat client.guid )
+
+# Authorization:
+    curl "$proxystring" -sH "Authorization: Bearer '$client_token_guid'" --data '{"jdoc_types": [0, 1, 2, 3]}' --compressed 'https://'$vector_ip'/v1/pull_jdocs' --insecure
+fi
+
+
+# End of initial token and auth stuff
+#---------------------------------------------/
+
+#---------------------------------------------\
+# Load saved client GUID from file:
+client_token_guid=$( cat client.guid )
+#---------------------------------------------/
+
+#---------------------------------------------\
+# curl'ed endpoint requests:
+#
+# Request control:
+request_control() {
+    curl -H 'Authorization: Bearer '$client_token_guid'' --request POST \
+    --data '{"control_request": {"priority": 20} }' --compressed 'https://'$vector_ip'/v1/assume_behavior_control' --insecure
+}
+
+# Request hi-priority control:
+request_control_hi() {
+    curl -H 'Authorization: Bearer '$client_token_guid'' --request POST \
+    --data '{"control_request": {"priority": 10} }' --compressed 'https://'$vector_ip'/v1/assume_behavior_control' --insecure
+}
+
+# Release control:
+release_control() {
+    curl -H 'Authorization: Bearer '$client_token_guid'' --request POST \
+    --data '{"control_release": {"priority": 20} }' --compressed 'https://'$vector_ip'/v1/assume_behavior_control' --insecure
+}
+
+# AlexaOptIn:
+alexa_optin() {
+    curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' \
+    --data '{"opt_in": true}' --compressed 'https://'$vector_ip'/v1/alexa_opt_in' --insecure
+}
+
+# Check Alexa State (JSON can be empty)
+alexa_check() {
+    curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' \
+    --data '{"alexa_auth_state": true}' --compressed 'https://'$vector_ip'/v1/alexa_auth_state' --insecure
+}
+
+# Drive off charger
+drive_off_charger() {
+    curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' \
+    --data '{"drive_off_charger": true}' --compressed 'https://'$vector_ip'/v1/drive_off_charger' --insecure
+}
+
+# Drive on charger
+drive_on_charger() {
+    curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' \
+    --data '{"drive_on_charger": true}' --compressed 'https://'$vector_ip'/v1/drive_on_charger' --insecure
+}
+
+# Look around in place:
+look_around() {
+    curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' \
+    --data '{"look_around": true}' --compressed 'https://'$vector_ip'/v1/look_around_in_place' --insecure
+}
+
+dock_cube() {
+    curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' \
+    --data '{"roll_block": true}' --compressed 'https://'$vector_ip'/v1/dock_with_cube' --insecure
+}
+
+# Roll cube:
+roll_block() {
+    curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' \
+    --data '{"roll_block": true}' --compressed 'https://'$vector_ip'/v1/roll_block' --insecure
+}
+
+# Get battery state:
+battery_state() {
+    batt_blob=$( curl "$proxystring" -sH 'Authorization: Bearer '$client_guid'' --request POST \
+    --data '{"battery_state": true}' --compressed 'https://'$vector_ip'/v1/battery_state' --insecure )  
+if test "$debug" = "true"
+    then
+        echo $batt_blob | tee battery.blob
+fi
+        batt_level=$( echo $batt_blob | sed -n 's|.*"battery_level":\([^"]*\),.*|\1|p' )
+        echo "Vector battery level     : $batt_level"
+        batt_volt=$( echo $batt_blob | sed -n 's|.*"battery_volts":\([^"]*\),"is_charging.*|\1|p' )
+        echo "Battery voltage          : $batt_volt Volts"
+        cube_id=$( echo $batt_blob | sed -n 's|.*"factory_id":"\([^"]*\)".*|\1|p' )
+        echo "Cube MAC                 : $cube_id"
+        cube_level=$( echo $batt_blob | sed -n 's|.*"cube_battery":{"level":\([^"]*\),.*|\1|p' )
+        echo "Cube battery level       : $cube_level"
+        cube_volt=$( echo $batt_blob | sed -n 's|.*"e1:70:a0:ac:c4:c4","battery_volts":\([^"]*\),.*|\1|p' )
+        echo "Cube voltage             : $cube_volt Volts."
+        is_charging=$( echo $batt_blob | sed -n 's|.*"is_charging":\([^"]*\),.*|\1|p' )
+        echo "Vector is charging       : $is_charging"
+        is_on_charger=$( echo $batt_blob | sed -n 's|.*"is_on_charger_platform":\([^"]*\),.*|\1|p' )
+        echo "Vector is on charger     : $is_on_charger"
+}
+
+
+# Snap photo:
+snap_pic() {
+    json_pic_blob=$( curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' --request POST \
+    --data '{"capture_single_image": true}' --compressed 'https://'$vector_ip'/v1/capture_single_image' --insecure )
+
+        frame_time_stamp=$( echo $json_pic_blob | sed -n 's|.*"frame_time_stamp":\([^"]*\),.*|\1|p' )
+        base64_pic=$( echo $json_pic_blob | sed -n 's|.*"data":"\([^"]*\)".*|\1|p' )
+        echo -n $base64_pic | base64 -di > 'img_'$frame_time_stamp'.jpg'
+}
+
+# Get OTA update from ANKI
+get_ota() {
+curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' \
+--data '{:}' --compressed 'https://'$vector_ip'/v1/update_and_restart' --insecure
+}
+#
+#---------------------------------------------/
+proxy() {
+    proxystring="-kpx127.0.0.1:8080"
+}
+
+# Say Text
+say_text() {
+    curl "$proxystring" -H 'Authorization: Bearer '$client_token_guid'' --request POST \
+    --data '{"say_text": {"text": "Me is fed up with electrons, me want Pizza!","use_vector_voice": true,"duration_scalar": 1.0}}' --compressed 'https://'$vector_ip'/v1/say_text' --insecure
+}
+#---------------------------------------------/
+
+# ===================================================================
+# Show help menù
+# ===================================================================
+usage() {
+    printf "${green}%s${endc}\\n" "$prog_name $version"
+    printf "${green}%s${endc}\\n" "Experimental Victor control tool for *NIX and Bash".
+    printf "${green}%s${endc}\\n" "A simple tool to easily explore direct endpoint control of Vector."
+    printf "${green}%s${endc}\\n" "This script only sends raw endpoint commands and arguments to the bot."
+    printf "${green}%s${endc}\\n" "It doesn't handle any responses (yet) and probably shouldn't."
+    printf "${green}%s${endc}\\n" "It was never my intention to create any companion-app substitute"
+    printf "${green}%s${endc}\\n" "but to create a tool for my own exploration and hammering on endpoints."
+    printf "${green}%s${endc}\\n" "For a thorough description of how to use it, see the README.txt"
+    printf "${green}%s${endc}\\n\\n" "$signature"
+
+    printf "${white}%s${endc}\\n\\n" "Schematic:"
+
+    printf "${white}%s${endc} ${red}%s${endc} ${white}%s${endc} ${red}%s${endc}\\n" \
+        "┌─╼" "$USER" "╺─╸" "$(hostname)"
+    printf "${white}%s${endc} ${green}%s${endc}\\n\\n" "└───╼" "$prog_name "╺─╸" (proxy) "╺─╸" [Victor API]"
+
+    printf "${white}%s${endc}\\n\\n" "Options:"
+
+    printf "${green}%s${endc}\\n" \
+           "-h, --help                 show this help message and exit"
+
+    printf "${green}%s${endc}\\n" \
+           "-batt, --battery_state            Get battery and charge status"
+
+    printf "${green}%s${endc}\\n" \
+           "-reqc, --control_request        Request control of Victor"
+
+    printf "${green}%s${endc}\\n" \
+           "-reqchi, --control_request_hi        Request hi priority control of Victor"
+
+    printf "${green}%s${endc}\\n" \
+           "-relc, --control_release        Release control of Victor"
+
+    printf "${green}%s${endc}\\n" \
+           "-droffc, --drive_off_charger        Drive off charger"
+
+    printf "${green}%s${endc}\\n" \
+           "-dronc, --drive_on_charger        Drive on charger"
+
+    printf "${green}%s${endc}\\n" \
+           "-pic, --snap_single_image               Snap a picture, download, decode and save to file"
+
+    printf "${green}%s${endc}\\n" \
+           "-ota, --get_ota                         Request OTA and restart)"
+
+    printf "${green}%s${endc}\\n" \
+           "-p, --proxy                             Use proxy for moniotring requests (must be the first switch)"
+
+    printf "${green}%s${endc}\\n" \
+           "-i, --info                Show parameter info"
+
+    printf "${green}%s${endc}\\n" \
+           "-v, --version                 display program version and exit"
+
+    printf "${green}
+Project URL: $git_url
+Report bugs: https://github.com/c0re/victor/issues${endc}\\n"
+    exit 0
+}
+
+
+# ===================================================================
+# Main function
+# ===================================================================
+
+# Parse command line arguments and start program
+main() {
+    if [[ "$#" -eq 0 ]]; then
+        printf "%s\\n" "$prog_name: Argument required"
+        printf "%s\\n" "Try '$prog_name --help' for more information."
+        exit 1
+    fi
+
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            -batt | --battery_state)
+                battery_state
+                ;;
+            -reqc | --control_request)
+                request_control
+                ;;
+            -reqchi | --control_request_hi)
+                request_control_hi
+                ;;
+            -relc | --control_release)
+                release_control
+                ;;
+            -droffc | --drive_off_charger)
+                drive_off_charger
+                ;;
+            -dronc | --drive_on_charger)
+                drive_on_charger
+                ;;
+            -look | --look_around)
+                look_around
+                ;;
+            -dock | --dock_with_cube)
+                dock_cube
+                ;;
+            -roll | --roll_block)
+                roll_block
+                ;;
+            -pic | --capture_single_image)
+                snap_pic
+                ;;
+            -say | --say_text)
+                say_text
+                ;;
+            -ota | --get_ota)
+                get_ota
+                ;;
+            -p | --proxy)
+                proxy
+                ;;
+            -i | --info)
+                banner
+                print_info
+                ;;
+            -v | --version)
+                banner
+                print_version
+                ;;
+            -h | --help)
+                banner
+                usage
+                exit 0
+                ;;
+            -- | -* | *)
+                printf "%s\\n" "$prog_name: Invalid option '$1'"
+                printf "%s\\n" "Try '$prog_name --help' for more information."
+                exit 1
+                ;;
+        esac
+        shift
+    done
+}
+
+
+main "$@"
+
