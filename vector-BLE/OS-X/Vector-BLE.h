@@ -29,14 +29,5 @@
  */
 - (id)initWithPeripheral:(CBPeripheral*) peripheral;
 
-#if 0
-/** Writes a given value to the characteristics
-    @param characteristic The characteristic to changed
-    @param value  The values to write
-    @returns Err_NoError if not problem, otherwise the error code
- */
-- (Err_t) writeCharacteristic:(CBCharacteristic*) characteristic
-                        int16:(int) value;
-#endif
 @end
 

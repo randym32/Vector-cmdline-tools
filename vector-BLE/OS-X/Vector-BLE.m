@@ -1,16 +1,11 @@
 //
-//
-//  Created by Randall Maas on 5/21/14.
-//
-//
-#import <CoreBluetooth/CoreBluetooth.h>
-//
 //  Vector-BLE.m
 //  Anki-1
 //
 //  Created by Randall Maas on 10/1/19.
 //  Copyright © 2019 Randall Maas. All rights reserved.
 //
+#import <CoreBluetooth/CoreBluetooth.h>
 #import "Vector-BLE.h"
 
 VectorProxy* vectorProxy;
