@@ -9,6 +9,10 @@
 #include <signal.h>
 #include <QTimer>
 
+#if ENABLE_GUI
+#include <QInputDialog>
+#endif
+
 #ifdef Q_OS_LINUX
 #include <QDBusConnectionInterface>
 #endif
@@ -20,6 +24,18 @@ void bleRecv(uint8_t const* bytes, size_t length);
 extern int _argc;
 extern char** _argv;
 
+#if ENABLE_GUI
+void UI_getPin(char* pin, int pinLen)
+{
+    QByteArray input = QInputDialog::getText(nullptr, "Enter pin", "Please enter the pin code shown on Vector").toLocal8Bit();
+    if (input.isEmpty()) {
+        bzero(pin, pinLen);
+        return;
+    }
+
+    memcpy(pin, input.constData(), std::min<size_t>(pinLen, input.length()));
+}
+#endif
 
 static QString wantedName;
 
