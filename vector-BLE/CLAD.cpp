@@ -340,7 +340,14 @@ void CLAD_ready()
 
 int _argc;
 char ** _argv;
-static int _myState = 0;
+
+enum States {
+    Uninitialized = 0,
+    RequestSent = 1,
+    RequestReceived = 2
+};
+
+static int _myState = Uninitialized;
 
 void printUsage(){
     puts("Vector bluetooth control application");
@@ -362,23 +369,23 @@ void CLAD_nextStep()
     //if (_myState) return;
     if (_argc >= 3 && 0==strcasecmp(_argv[1], "ap"))
     {
-        if (_myState ==1)
+        if (_myState == RequestSent)
         {
-            _myState = 2;
+            _myState = RequestReceived;
             // access point mode
             WiFi_AP_req(0==strcasecmp(_argv[2], "enable")?1:0);
             return;
         }
-        if (_myState == 2) exit(0);
-        _myState = 1;
+        if (_myState == RequestReceived) exit(0);
+        _myState = RequestSent;
         // Request a cloud session first
         CloudSession_req("2ky3cjcJPmmcjHWd9AQ9FZS", "lappy2000", "companion-app");
         return ;
     }
     else if (_argc >= 3 && 0==strcasecmp(_argv[1], "log"))
     {
-        if (_myState ==1) return;
-        _myState = 1;
+        if (_myState ==RequestSent) return;
+        _myState = RequestSent;
         // download the logs
         // set the file name
         // file name = _argv[2]
@@ -388,8 +395,8 @@ void CLAD_nextStep()
     // see if we should trigger an OTA download
     else if (_argc >= 3 && 0==strcasecmp(_argv[1], "ota"))
     {
-        if (0 != _myState) return;
-        _myState = 1;
+        if (_myState != Uninitialized) return;
+        _myState = RequestSent;
         // send ota request
         OTA_req(_argv[2]);
     }
