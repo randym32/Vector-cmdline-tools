@@ -11,6 +11,7 @@
 #include <string.h>
 #include "utils.h"
 #include <cstdint>
+#include <string>
 
 void CLAD_nextStep();
 
@@ -244,8 +245,8 @@ void OTA_recv(uint8_t const* msg, size_t size, uint8_t version)
 {
     // Decode the fields
     uint8_t  status   = msg[0];
-    uint64_t current  = LEU64_decode(msg+1);//  The number of bytes downloaded
-    uint64_t expected = LEU64_decode(msg+8);// The number of bytes expected to be downloaded
+    uint64_t current  = LEU64_decode(msg+1);//  The number of bytes downloaded
+    uint64_t expected = LEU64_decode(msg+8);// The number of bytes expected to be downloaded
 
     static char const* const statusMsgs[] = {"idle","unknown","in progress",
         "complete", "rebooting", "error"};
@@ -341,12 +342,24 @@ int _argc;
 char ** _argv;
 static int _myState = 0;
 
+void printUsage(){
+    puts("Vector bluetooth control application");
+    puts("This project is licensed under the BSD 2-Clause License - see the LICENSE file for details.");
+    puts("Copyright © 2019 Randall Maas. All rights reserved.\n");
+    puts("Usage:");
+    printf("\t%s ap enable         enable ap\n", _argv[0]);
+    printf("\t%s ap disable        disable ap\n", _argv[0]);
+    printf("\t%s log <filename>    download log to filename\n", _argv[0]);
+    printf("\t%s ota <URL>         Ask Vector to download an OTA update from URL\n", _argv[0]);
+    exit(0);
+}
+
 // This is called after something else was received so that I can send out a
 // further command line-triggered action
 void CLAD_nextStep()
 {
     //if (_myState) return;
-    if (_argc == 3 && 0==strcasecmp(_argv[1], "ap"))
+    if (_argc >= 3 && 0==strcasecmp(_argv[1], "ap"))
     {
         if (_myState ==1)
         {
@@ -361,7 +374,7 @@ void CLAD_nextStep()
         CloudSession_req("2ky3cjcJPmmcjHWd9AQ9FZS", "lappy2000", "companion-app");
         return ;
     }
-    else if (_argc == 3 && 0==strcasecmp(_argv[1], "log"))
+    else if (_argc >= 3 && 0==strcasecmp(_argv[1], "log"))
     {
         if (_myState ==1) return;
         _myState = 1;
@@ -372,15 +385,16 @@ void CLAD_nextStep()
         log_req();
     }
     // see if we should trigger an OTA download
-    else if (_argc == 3 && 0==strcasecmp(_argv[1], "ota"))
+    else if (_argc >= 3 && 0==strcasecmp(_argv[1], "ota"))
     {
         if (0 != _myState) return;
         _myState = 1;
-        // download the logs
+        // send ota request
         OTA_req(_argv[2]);
     }
     else
     {
+        printUsage();
         exit(0);
     }
     // Todo:
@@ -398,6 +412,18 @@ int main(int argc, char * argv[])
 {
     _argc = argc;
     _argv = argv;
+
+    if (argc < 2) {
+        printUsage();
+        return 1;
+    }
+    for (int i=1;i<argc;i++) {
+        const std::string arg(argv[i]); // I like ==
+        if (arg == "-help" || arg == "-h" || arg == "--help" || arg == "help" ) {
+            printUsage();
+            return 1;
+        }
+    }
     // Scan for Vector
     bleScan();
     return 0;
