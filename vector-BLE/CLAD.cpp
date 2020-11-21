@@ -350,12 +350,9 @@ enum States {
 static int _myState = Uninitialized;
 
 void printUsage(){
-    puts("Vector bluetooth control application");
-    puts("This project is licensed under the BSD 2-Clause License - see the LICENSE file for details.");
-    puts("Copyright © 2019 Randall Maas. All rights reserved.\n");
     puts("Usage:");
-    printf("\t%s ap enable [name]        enable ap\n", _argv[0]);
-    printf("\t%s ap disable [name]       disable ap\n", _argv[0]);
+    printf("\t%s ap enable [name]        enable Vector's wifi access point mode\n", _argv[0]);
+    printf("\t%s ap disable [name]       disable access point mode\n", _argv[0]);
     printf("\t%s log <filename> [name]   download log to filename\n", _argv[0]);
     printf("\t%s ota <URL> [name]        Ask Vector to download an OTA update from URL\n", _argv[0]);
     puts("[name] is an optional argument specifying the name of the robot you want to connect to, in case you have several.");
@@ -371,6 +368,7 @@ void CLAD_nextStep()
     {
         if (_myState == RequestSent)
         {
+            puts("Cloud session acquired");
             _myState = RequestReceived;
             // access point mode
             WiFi_AP_req(0==strcasecmp(_argv[2], "enable")?1:0);
@@ -418,6 +416,10 @@ void CLAD_nextStep()
  */
 int main(int argc, char * argv[])
 {
+    puts("Vector bluetooth control application");
+    puts("This project is licensed under the BSD 2-Clause License - see the LICENSE file for details.");
+    puts("Copyright © 2019 Randall Maas. All rights reserved.\n");
+
     _argc = argc;
     _argv = argv;
 
