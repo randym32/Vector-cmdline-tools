@@ -9,6 +9,9 @@
 #ifndef utils_h
 #define utils_h
 
+#include <cstdint>
+#include <cstddef>
+
 extern "C"
 {
     void bleScan();

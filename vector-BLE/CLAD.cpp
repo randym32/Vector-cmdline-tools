@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "utils.h"
+#include <cstdint>
 
 void CLAD_nextStep();
 

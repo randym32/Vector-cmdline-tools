@@ -1,5 +1,3 @@
-#include "Vector-BLE.h"
-
 #include <QCoreApplication>
 #include <QBluetoothDeviceDiscoveryAgent>
 #include <QBluetoothLocalDevice>

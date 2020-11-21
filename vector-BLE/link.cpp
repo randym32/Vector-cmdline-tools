@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "/usr/local/include/sodium.h"
+#include <sodium.h>
 #include "utils.h"
 
 /// The version of the protocol and message formats
