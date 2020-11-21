@@ -394,7 +394,7 @@ void CLAD_nextStep()
       "ap enable" to enable access point
       "log FILENAME" to retrieve the logs
  */
-int main(int argc, const char * argv[])
+int main(int argc, char * argv[])
 {
     _argc = argc;
     _argv = argv;
