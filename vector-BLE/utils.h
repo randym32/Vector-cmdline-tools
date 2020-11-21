@@ -25,6 +25,9 @@ extern int protoVersion;
 /// A pointer into the payload area of the message
 extern uint8_t* out_msg;
 
+extern int _argc;
+extern char** _argv;
+
 /// This is used to map a 16-bit little endian to the native format
 #define LEU16_decode(p) (((p)[0] & 0xFFuL)| (((p)[1] << 8) & 0xFF00uL))
 

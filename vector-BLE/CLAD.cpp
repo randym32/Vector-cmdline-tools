@@ -337,8 +337,8 @@ void CLAD_ready()
     status_req();
 }
 
-static int _argc;
-static const char** _argv;
+int _argc;
+char ** _argv;
 static int _myState = 0;
 
 // This is called after something else was received so that I can send out a

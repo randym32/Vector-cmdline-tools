@@ -31,7 +31,7 @@ enum
 };
 
 /// A buffer to hold the outgoing message
-uint8_t out_buf[4+CLAD_MAX_SIZE];
+static uint8_t out_buf[4+CLAD_MAX_SIZE];
 
 /// A pointer into the payload area of the message
 uint8_t* out_msg=out_buf+3;
@@ -39,7 +39,7 @@ uint8_t* out_msg=out_buf+3;
 
 #pragma mark credentials
 /// The credentials for communicating with vector
-uint8_t Vector_publicKey[crypto_kx_PUBLICKEYBYTES];
+static uint8_t Vector_publicKey[crypto_kx_PUBLICKEYBYTES];
 
 
 /** A place for the operator to enter the pin code
@@ -63,13 +63,13 @@ __attribute__((weak)) void UI_getPin(char* pin, int pinLen)
 }
 
 /// This is set once we are supposed to start using the encryption
-uint8_t useEncryption = 0;
-uint8_t publicKey [crypto_kx_PUBLICKEYBYTES];
-uint8_t secretKey [crypto_kx_SECRETKEYBYTES];
-uint8_t encryptionKey[crypto_kx_SESSIONKEYBYTES];
-uint8_t encryptionNonce[24];
-uint8_t decryptionKey[crypto_kx_SESSIONKEYBYTES];
-uint8_t decryptionNonce[24];
+static uint8_t useEncryption = 0;
+static uint8_t publicKey [crypto_kx_PUBLICKEYBYTES];
+static uint8_t secretKey [crypto_kx_SECRETKEYBYTES];
+static uint8_t encryptionKey[crypto_kx_SESSIONKEYBYTES];
+static uint8_t encryptionNonce[24];
+static uint8_t decryptionKey[crypto_kx_SESSIONKEYBYTES];
+static uint8_t decryptionNonce[24];
 
 
 
