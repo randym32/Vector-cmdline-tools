@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "utils.h"
+#include <cstdint>
+#include <string>
 
 void CLAD_nextStep();
 
@@ -243,13 +245,13 @@ void OTA_recv(uint8_t const* msg, size_t size, uint8_t version)
 {
     // Decode the fields
     uint8_t  status   = msg[0];
-    uint64_t current  = LEU64_decode(msg+1);//  The number of bytes downloaded
-    uint64_t expected = LEU64_decode(msg+8);// The number of bytes expected to be downloaded
+    uint64_t current  = LEU64_decode(msg+1);//  The number of bytes downloaded
+    uint64_t expected = LEU64_decode(msg+8);// The number of bytes expected to be downloaded
 
     static char const* const statusMsgs[] = {"idle","unknown","in progress",
         "complete", "rebooting", "error"};
     
-    printf("OTA: (%llu of %llu downloaded): %s (%d) \n", current, expected, status<= 5?statusMsgs[status]:"unknown", status);
+    printf("OTA: (%lu of %lu downloaded): %s (%d) \n", current, expected, status<= 5?statusMsgs[status]:"unknown", status);
     
     // see if we're done
     // The update has completed the download when the current number of bytes
@@ -320,6 +322,7 @@ void CLAD_interpret(uint8_t type, uint8_t const* msg, size_t size, uint8_t versi
         case 0xf:
             // OTA
             OTA_recv(msg, size, version);
+        break;
         default:
             break;
     }
@@ -335,34 +338,52 @@ void CLAD_ready()
     status_req();
 }
 
-static int _argc;
-static const char** _argv;
-static int _myState = 0;
+int _argc;
+char ** _argv;
+
+enum States {
+    Uninitialized = 0,
+    RequestSent = 1,
+    RequestReceived = 2
+};
+
+static int _myState = Uninitialized;
+
+void printUsage(){
+    puts("Usage:");
+    printf("\t%s ap enable [name]        enable Vector's wifi access point mode\n", _argv[0]);
+    printf("\t%s ap disable [name]       disable access point mode\n", _argv[0]);
+    printf("\t%s log <filename> [name]   download log to filename\n", _argv[0]);
+    printf("\t%s ota <URL> [name]        Ask Vector to download an OTA update from URL\n", _argv[0]);
+    puts("[name] is an optional argument specifying the name of the robot you want to connect to, in case you have several.");
+    exit(0);
+}
 
 // This is called after something else was received so that I can send out a
 // further command line-triggered action
 void CLAD_nextStep()
 {
     //if (_myState) return;
-    if (_argc == 3 && 0==strcasecmp(_argv[1], "ap"))
+    if (_argc >= 3 && 0==strcasecmp(_argv[1], "ap"))
     {
-        if (_myState ==1)
+        if (_myState == RequestSent)
         {
-            _myState = 2;
+            puts("Cloud session acquired");
+            _myState = RequestReceived;
             // access point mode
             WiFi_AP_req(0==strcasecmp(_argv[2], "enable")?1:0);
             return;
         }
-        if (_myState == 2) exit(0);
-        _myState = 1;
+        if (_myState == RequestReceived) exit(0);
+        _myState = RequestSent;
         // Request a cloud session first
         CloudSession_req("2ky3cjcJPmmcjHWd9AQ9FZS", "lappy2000", "companion-app");
         return ;
     }
-    else if (_argc == 3 && 0==strcasecmp(_argv[1], "log"))
+    else if (_argc >= 3 && 0==strcasecmp(_argv[1], "log"))
     {
-        if (_myState ==1) return;
-        _myState = 1;
+        if (_myState ==RequestSent) return;
+        _myState = RequestSent;
         // download the logs
         // set the file name
         // file name = _argv[2]
@@ -370,15 +391,16 @@ void CLAD_nextStep()
         log_req();
     }
     // see if we should trigger an OTA download
-    else if (_argc == 3 && 0==strcasecmp(_argv[1], "ota"))
+    else if (_argc >= 3 && 0==strcasecmp(_argv[1], "ota"))
     {
-        if (0 != _myState) return;
-        _myState = 1;
-        // download the logs
+        if (_myState != Uninitialized) return;
+        _myState = RequestSent;
+        // send ota request
         OTA_req(_argv[2]);
     }
     else
     {
+        printUsage();
         exit(0);
     }
     // Todo:
@@ -392,10 +414,26 @@ void CLAD_nextStep()
       "ap enable" to enable access point
       "log FILENAME" to retrieve the logs
  */
-int main(int argc, const char * argv[])
+int main(int argc, char * argv[])
 {
+    puts("Vector bluetooth control application");
+    puts("This project is licensed under the BSD 2-Clause License - see the LICENSE file for details.");
+    puts("Copyright © 2019 Randall Maas. All rights reserved.\n");
+
     _argc = argc;
     _argv = argv;
+
+    if (argc < 2) {
+        printUsage();
+        return 1;
+    }
+    for (int i=1;i<argc;i++) {
+        const std::string arg(argv[i]); // I like ==
+        if (arg == "-help" || arg == "-h" || arg == "--help" || arg == "help" ) {
+            printUsage();
+            return 1;
+        }
+    }
     // Scan for Vector
     bleScan();
     return 0;
