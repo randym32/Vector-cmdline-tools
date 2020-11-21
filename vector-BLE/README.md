@@ -1,3 +1,13 @@
+# WARNING: the windows/linux support is completely untested, probably doesn't work, and might brick your robot, laptop and/or random other bluetooth devices nearby.
+
+To build for Linux/Windows you need to install the qt libraries (and probably
+the toolchain if you're on windows, so you get a compiler), in addition to
+libsodium mentioned below. Then either open the .pro file in qtcreator to build
+it (easiest on windows), or just run `qmake && make` (easiest on linux, I
+guess).
+
+Then it should work as normal/on macos.
+
 # Vector Bluetooth LE reference implementation
 
 This is a demonstration of code that loves Vectors' Bluetooth
@@ -38,4 +48,4 @@ Add additional notes about how to deploy this on a live system
 
 ## License
 
-This project is licensed under the BSD 2-Clause License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the BSD 2-Clause License - see the [LICENSE](LICENSE) file for details
