@@ -243,7 +243,7 @@ void bleRecv(uint8_t const* frame, size_t length)
     {
         // decrypt
         unsigned long long destLen=0;
-        (void) crypto_aead_xchacha20poly1305_ietf_decrypt(message, &destLen, NULL, buffer, buf_ofs,  NULL, 0L, decryptionNonce, decryptionKey);
+        (void) crypto_aead_xchacha20poly1305_ietf_decrypt(message, &destLen, nullptr, buffer, buf_ofs,  nullptr, 0L, decryptionNonce, decryptionKey);
 
         // update the nonce
         sodium_increment(decryptionNonce, sizeof decryptionNonce);
@@ -320,7 +320,7 @@ void sendMsg(uint8_t tag, size_t size)
     if (useEncryption)
     {
         // encrypt it
-        crypto_aead_xchacha20poly1305_ietf_encrypt(_cipher, &cipherLength, out_buf, size+3, NULL, 0L, NULL, encryptionNonce, encryptionKey);
+        crypto_aead_xchacha20poly1305_ietf_encrypt(_cipher, &cipherLength, out_buf, size+3, nullptr, 0L, nullptr, encryptionNonce, encryptionKey);
         cipher=_cipher;
         
         // update the nonce
