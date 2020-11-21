@@ -89,6 +89,7 @@ static int didHandshake=0;
 static void connRequest_recv(uint8_t const* msg, size_t size, uint8_t version)
 {
     (void) size;
+    (void) version;
     // A connection message is a public key
     memcpy(Vector_publicKey, msg, 32);
 
@@ -159,6 +160,9 @@ static void nonce_recv(uint8_t const* msg, size_t size, uint8_t version)
  */
 static void challenge_recv(uint8_t const* msg, size_t size, uint8_t msgVersion)
 {
+    (void)size;
+    (void)msgVersion;
+
     // get the challenge value
     uint32_t challenge = LEU32_decode(msg);
     // increment it and sent it back

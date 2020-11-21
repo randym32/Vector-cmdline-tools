@@ -250,7 +250,7 @@ void OTA_recv(uint8_t const* msg, size_t size, uint8_t version)
     static char const* const statusMsgs[] = {"idle","unknown","in progress",
         "complete", "rebooting", "error"};
     
-    printf("OTA: (%llu of %llu downloaded): %s (%d) \n", current, expected, status<= 5?statusMsgs[status]:"unknown", status);
+    printf("OTA: (%lu of %lu downloaded): %s (%d) \n", current, expected, status<= 5?statusMsgs[status]:"unknown", status);
     
     // see if we're done
     // The update has completed the download when the current number of bytes
@@ -321,6 +321,7 @@ void CLAD_interpret(uint8_t type, uint8_t const* msg, size_t size, uint8_t versi
         case 0xf:
             // OTA
             OTA_recv(msg, size, version);
+        break;
         default:
             break;
     }
