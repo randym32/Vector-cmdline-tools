@@ -1,4 +1,4 @@
-#include <QCoreApplication>
+#include <QApplication>
 #include <QBluetoothDeviceDiscoveryAgent>
 #include <QBluetoothLocalDevice>
 #include <QBluetoothUuid>
@@ -9,6 +9,10 @@
 #include <signal.h>
 #include <QTimer>
 
+#ifdef Q_OS_LINUX
+#include <QDBusConnectionInterface>
+#endif
+
 extern "C" {
 
 void bleRecv(uint8_t const* bytes, size_t length);
@@ -17,13 +21,17 @@ extern int _argc;
 extern char** _argv;
 
 
+static QString wantedName;
+
 static QPointer<QBluetoothDeviceDiscoveryAgent> agent;
 static QPointer<QLowEnergyController> controller;
 static QPointer<QLowEnergyService> m_service;
 
-static void onDeviceConnected()
+static void onServiceDiscovered()
 {
-    qDebug() << "Device discovered";
+    qDebug() << "========================";
+    qDebug() << "Service discovered";
+    qDebug() << "========================";
     static const QBluetoothUuid vectorService(QStringLiteral("{0000fee3-0000-1000-8000-00805f9b34fb}"));
     m_service = controller->createServiceObject(vectorService, controller);
     if (!m_service) {
@@ -35,61 +43,71 @@ static void onDeviceConnected()
     static const QBluetoothUuid readUuid(QStringLiteral("{30619F2D-0F54-41BD-A65A-7588D8C85B45}"));
     QObject::connect(m_service, &QLowEnergyService::characteristicChanged, [](const QLowEnergyCharacteristic &characteristic, const QByteArray &data){
         if (characteristic.uuid() != readUuid) {
-            qWarning() << "Unexpected data from characteristic" << characteristic.name() << characteristic.uuid();
+            qWarning() << " ! Unexpected data from characteristic" << characteristic.name() << characteristic.uuid();
         }
-        qDebug() << "Received" << data;
+        qDebug() << " - Received" << data;
         bleRecv(reinterpret_cast<const uint8_t*>(data.data()), data.size());
     });
 
     QObject::connect(m_service, &QLowEnergyService::stateChanged, [](QLowEnergyService::ServiceState newState) {
-        qDebug() << "State changeD" << newState;
+        qDebug() << " - State changeD" << newState;
         if (newState != QLowEnergyService::ServiceDiscovered) {
             return;
         }
 
         for (const QLowEnergyCharacteristic &c : m_service->characteristics()) {
-            qDebug() << c.name() << c.uuid() << c.properties();
+            qDebug() << " - Characteristic:" << c.name() << c.uuid() << c.properties();
         }
-        qDebug() << "read charactierstic is valid?" << m_service->characteristic(readUuid).isValid();
+        qDebug() << " - read charactierstic is valid?" << m_service->characteristic(readUuid).isValid();
 
         QList<QLowEnergyDescriptor> readDescriptors = m_service->characteristic(readUuid).descriptors();
         if (readDescriptors.count() != 1) {
-            qDebug() << "Read descriptors wrong count" << readDescriptors.count();
+            qDebug() << " ! Read descriptors wrong count" << readDescriptors.count();
             return;
         }
         m_service->writeDescriptor(readDescriptors.first(), QByteArray::fromHex("0100"));
     });
+    qDebug() << " - Connecting to service";
     m_service->discoverDetails();
 }
 
 static void onDeviceDiscovered(const QBluetoothDeviceInfo &device)
 {
     if (controller) {
+        qDebug() << " ! Already has a controller/connection";
         return;
     }
 
 
     static const QBluetoothUuid vectorService(QStringLiteral("{0000fee3-0000-1000-8000-00805f9b34fb}"));
     if (!device.serviceUuids().contains(vectorService)) {
+//        qDebug() << " - Ignoring unknown:" << device.name();
         return;
     }
 
+    qDebug() << "========================";
     qDebug() << "Device discovered" << device.name();
     qDebug() << "Device uuid" << device.address();
+    qDebug() << "========================";
+
+    if (!wantedName.isEmpty() && !device.name().contains(wantedName)) {
+        qDebug() << " - Was not the requested device, scanning for others...";
+        return;
+    }
 
     if (!device.isValid()) {
-        qWarning() << "Invalid device";
+        qWarning() << "Invalid device!";
         return;
     }
     for (const QBluetoothUuid &uuid : device.serviceUuids()) {
-        qDebug() << "service:" << uuid;
+        qDebug() << " - service:" << uuid;
     }
-    qDebug() << device.isValid();
+    agent->stop();
     controller = QLowEnergyController::createCentral(device, agent);
 
     QObject::connect(controller, &QLowEnergyController::connected, controller, &QLowEnergyController::discoverServices);
     QObject::connect(controller, &QLowEnergyController::connected, controller, []() {
-        qDebug() << "Connected";
+        qDebug() << " - Connected";
     });
     QObject::connect(controller, &QLowEnergyController::connectionUpdated, [](const QLowEnergyConnectionParameters &parms) {
         qDebug() << " - controller connection updated, latency" << parms.latency() << "maxinterval:" << parms.maximumInterval() << "mininterval:" << parms.minimumInterval() << "supervision timeout" << parms.supervisionTimeout(
@@ -98,8 +116,15 @@ static void onDeviceDiscovered(const QBluetoothDeviceInfo &device)
     QObject::connect(controller, &QLowEnergyController::connected, []() {
         qDebug() << " - controller connected";
     });
+    QObject::connect(controller, &QLowEnergyController::stateChanged, [](QLowEnergyController::ControllerState state) {
+        qDebug() << " - Controller state changed:" << state;
+        if (state == QLowEnergyController::UnconnectedState) {
+            qApp->quit();
+        }
+    });
     QObject::connect(controller, QOverload<QLowEnergyController::Error>::of(&QLowEnergyController::error), [](QLowEnergyController::Error newError) {
-        qWarning() << "Controller error" << newError;
+        qWarning() << " - Controller error" << newError << controller->errorString();
+        qApp->quit();
     });
     QObject::connect(controller, &QLowEnergyController::disconnected, []() {
         qDebug() << " - controller disconnected";
@@ -107,15 +132,14 @@ static void onDeviceDiscovered(const QBluetoothDeviceInfo &device)
     QObject::connect(controller, &QLowEnergyController::discoveryFinished, []() {
         qDebug() << " - controller discovery finished";
     });
-    QObject::connect(controller, &QLowEnergyController::connected, []() { qDebug() << "ConnecteD"; });
-//    QObject::connect(controller, &QLowEnergyController::connected, []() { onDeviceConnected(); });
+    QObject::connect(controller, &QLowEnergyController::connected, []() { qDebug() << " - Connected"; });
     QObject::connect(controller, &QLowEnergyController::serviceDiscovered, [](const QBluetoothUuid &newService) {
-        qDebug() << "Service discovered" << newService;
+        qDebug() << " - Service discovered" << newService;
         if (newService == vectorService) {
-            onDeviceConnected();
+            onServiceDiscovered();
         }
     });
-    qDebug() << "Discovering services";
+    qDebug() << " - Connecting to device";
 //    controller->discoverServices();
     controller->connectToDevice();
 }
@@ -137,21 +161,28 @@ void bleSend(void const* bytes, size_t length)
 
 void bleScan()
 {
-    QCoreApplication app(_argc, _argv);
+    QApplication app(_argc, _argv);
+    if (_argc > 3) {
+        wantedName = _argv[3];
+        qDebug() << " - Only connecting to" << wantedName;
+    }
 
-    agent = new QBluetoothDeviceDiscoveryAgent(&app);
-    QObject::connect(agent, QOverload<QBluetoothDeviceDiscoveryAgent::Error>::of(&QBluetoothDeviceDiscoveryAgent::error), [](){
-        qDebug() << "Agent error:" << agent->errorString();
-    });
-    QObject::connect(agent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered, [](const QBluetoothDeviceInfo &device) {
-        onDeviceDiscovered(device);
-    });
-    agent->setLowEnergyDiscoveryTimeout(30000);
 
     // Wait for event loop to start
     QTimer::singleShot(0, [&app](){
+        agent = new QBluetoothDeviceDiscoveryAgent(&app);
+        QObject::connect(agent, QOverload<QBluetoothDeviceDiscoveryAgent::Error>::of(&QBluetoothDeviceDiscoveryAgent::error), [&app](){
+            qDebug() << " ! Agent error:" << agent->errorString();
+            app.quit();
+        });
+        QObject::connect(agent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered, [](const QBluetoothDeviceInfo &device) {
+            onDeviceDiscovered(device);
+        });
+        agent->setLowEnergyDiscoveryTimeout(30000);
+
         QBluetoothLocalDevice *adapter = new QBluetoothLocalDevice(&app);
         adapter->powerOn(); // Justin Case™
+        qDebug() << " - Starting scan...";
         agent->start(QBluetoothDeviceDiscoveryAgent::LowEnergyMethod);
     });
 

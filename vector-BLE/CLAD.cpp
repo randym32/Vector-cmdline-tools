@@ -347,10 +347,11 @@ void printUsage(){
     puts("This project is licensed under the BSD 2-Clause License - see the LICENSE file for details.");
     puts("Copyright © 2019 Randall Maas. All rights reserved.\n");
     puts("Usage:");
-    printf("\t%s ap enable         enable ap\n", _argv[0]);
-    printf("\t%s ap disable        disable ap\n", _argv[0]);
-    printf("\t%s log <filename>    download log to filename\n", _argv[0]);
-    printf("\t%s ota <URL>         Ask Vector to download an OTA update from URL\n", _argv[0]);
+    printf("\t%s ap enable [name]        enable ap\n", _argv[0]);
+    printf("\t%s ap disable [name]       disable ap\n", _argv[0]);
+    printf("\t%s log <filename> [name]   download log to filename\n", _argv[0]);
+    printf("\t%s ota <URL> [name]        Ask Vector to download an OTA update from URL\n", _argv[0]);
+    puts("[name] is an optional argument specifying the name of the robot you want to connect to, in case you have several.");
     exit(0);
 }
 
